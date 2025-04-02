@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Retail Data Collection</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { background: #4CAF50; color: white; padding: 10px 15px; border: none; cursor: pointer; }
+        .map { height: 300px; margin: 20px 0; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Retail Location Data Submission</h1>
+    <div id="map" class="map"></div>
+    
+    <form id="dataForm">
+        <div class="form-group">
+            <label>User ID:</label>
+            <input type="text" id="user_id" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Location Coordinates:</label>
+            <input type="text" id="coordinates" placeholder="Click on map to select" readonly required>
+            <input type="hidden" id="latitude">
+            <input type="hidden" id="longitude">
+        </div>
+        
+        <div class="form-group">
+            <label>Sales Volume (Last Month):</label>
+            <input type="number" id="sales_volume" step="0.01" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Daily Foot Traffic (if known):</label>
+            <input type="number" id="daily_foot_traffic">
+        </div>
+        
+        <div class="form-group">
+            <label>Number of Competitors Nearby:</label>
+            <input type="number" id="competitors_nearby" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Area Type:</label>
+            <select id="area_type" required>
+                <option value="retail">Retail Area</option>
+                <option value="residential">Residential Area</option>
+                <option value="mixed">Mixed Use</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Amenities Nearby:</label>
+            <div>
+                <input type="checkbox" id="parking"> <label for="parking">Parking Available</label>
+            </div>
+            <div>
+                <input type="checkbox" id="main_road"> <label for="main_road">On Main Road</label>
+            </div>
+        </div>
+        
+        <button type="submit">Submit Data</button>
+    </form>
+
+    <div id="message" style="margin-top:20px;"></div>
+
+    <!-- Load Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap" async defer></script>
+    
+    <script>
+        let map;
+        let marker;
+        
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: {lat: 19.0760, lng: 72.8777}, // Default to Mumbai
+                zoom: 13
+            });
+            
+            // Add click listener
+            map.addListener("click", (event) => {
+                if (marker) marker.setMap(null);
+                
+                marker = new google.maps.Marker({
+                    position: event.latLng,
+                    map: map
+                });
+                
+                document.getElementById("coordinates").value = 
+                    `${event.latLng.lat().toFixed(6)}, ${event.latLng.lng().toFixed(6)}`;
+                document.getElementById("latitude").value = event.latLng.lat();
+                document.getElementById("longitude").value = event.latLng.lng();
+            });
+        }
+        
+        document.getElementById("dataForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                user_id: document.getElementById("user_id").value,
+                latitude: parseFloat(document.getElementById("latitude").value),
+                longitude: parseFloat(document.getElementById("longitude").value),
+                sales_volume: parseFloat(document.getElementById("sales_volume").value),
+                daily_foot_traffic: document.getElementById("daily_foot_traffic").value ? 
+                    parseInt(document.getElementById("daily_foot_traffic").value) : null,
+                competitors_nearby: parseInt(document.getElementById("competitors_nearby").value),
+                area_type: document.getElementById("area_type").value,
+                has_parking: document.getElementById("parking").checked,
+                is_main_road: document.getElementById("main_road").checked
+            };
+            
+            try {
+                const response = await fetch('http://localhost:5001/submit-location-data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                document.getElementById("message").innerHTML = 
+                    response.ok ? 
+                    `<p style="color:green">${result.message}</p>` : 
+                    `<p style="color:red">Error: ${result.error}</p>`;
+                
+            } catch (error) {
+                document.getElementById("message").innerHTML = 
+                    `<p style="color:red">Network error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
